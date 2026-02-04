@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospedaje Venezuela - Directorio Nacional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- API de Google Maps -->
+    <script>
+        function gm_authFailure() { 
+            console.error("Error de autenticación de Google Maps.");
+            const mapDiv = document.getElementById('map');
+            if (mapDiv) {
+                mapDiv.innerHTML = `<div class="flex flex-col items-center justify-center h-full bg-slate-100 p-6 text-center">
+                    <p class="text-slate-500 font-bold uppercase text-xs">Error de Conexión</p>
+                </div>`;
+            }
+        }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCfesjCIH_ywJHgfE39lS3XMNHWCsvdrEY&callback=initMap" async defer></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, getDocs, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBzEcMlt3qMTXlcenUHP9maTf3R0FcGuVk",
+            authDomain: "mapas-f3631.firebaseapp.com",
+            projectId: "mapas-f3631",
+            storageBucket: "mapas-f3631.firebasestorage.app",
+            messagingSenderId: "371361660096",
+            appId: "1:371361660096:web:ee6fc58f04945f16860125",
+            measurementId: "G-8LY0GBPVZ8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const appId = 'venezuela-hospedaje-v8'; 
+
+        const normalizeText = (text) => {
+            if (!text) return "";
+            return text.trim().toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        };
+
+        async function loadAppData() {
+            try {
+                await seedInitialData();
+                startListening();
+            } catch (error) {
+                console.error("Error:", error);
+                hideLoader();
+            }
+        }
+
+        async function seedInitialData() {
+            const locationsRef = collection(db, 'artifacts', appId, 'public', 'data', 'locations');
+            const snapshot = await getDocs(query(locationsRef));
+            
+            if (snapshot.empty) {
+                const initialRegistry = [
+                    // --- CARACAS (DISTRITO CAPITAL) - 6 UBICACIONES ---
+                    { name: "Hotel Humboldt", category: "Hotel 5★", state: "Distrito Capital", zone: "El Ávila", parish: "Altagracia", lat: 10.5422, lng: -66.8839 },
+                    { name: "Hotel Waldorf", category: "Hotel 5★", state: "Distrito Capital", zone: "La Candelaria", parish: "Altagracia", lat: 10.5055, lng: -66.8998 },
+                    { name: "Gran Meliá Caracas", category: "Hotel 5★", state: "Distrito Capital", zone: "Sabana Grande", parish: "El Recreo", lat: 10.4905, lng: -66.8778 },
+                    { name: "Hotel Alex", category: "Hotel 4★", state: "Distrito Capital", zone: "Centro", parish: "Altagracia", lat: 10.5042, lng: -66.9082 },
+                    { name: "Hotel Lincoln Suites", category: "Hotel 4★", state: "Distrito Capital", zone: "Sabana Grande", parish: "El Recreo", lat: 10.4898, lng: -66.8745 },
+                    { name: "Hotel Savoy", category: "Hotel 3★", state: "Distrito Capital", zone: "Sabana Grande", parish: "El Recreo", lat: 10.4912, lng: -66.8785 },
+                    
+                    // --- CARACAS (MIRANDA - METROPOLITANA) - 8 UBICACIONES ---
+                    { name: "JW Marriott Caracas", category: "Hotel 5★", state: "Miranda", zone: "El Rosal", parish: "Chacao", lat: 10.4892, lng: -66.8572 },
+                    { name: "Eurobuilding Hotel & Suites", category: "Hotel 5★", state: "Miranda", zone: "Chuao", parish: "Baruta", lat: 10.4816, lng: -66.8351 },
+                    { name: "Hotel Cayena", category: "Hotel 5★", state: "Miranda", zone: "La Castellana", parish: "Chacao", lat: 10.4955, lng: -66.8505 },
+                    { name: "Hotel Tamanaco", category: "Hotel 5★", state: "Miranda", zone: "Las Mercedes", parish: "Baruta", lat: 10.4835, lng: -66.8548 },
+                    { name: "Renaissance Caracas", category: "Hotel 5★", state: "Miranda", zone: "La Castellana", parish: "Chacao", lat: 10.4968, lng: -66.8512 },
+                    { name: "Hotel Pestana", category: "Hotel 5★", state: "Miranda", zone: "Santa Eduvigis", parish: "Leoncio Martínez", lat: 10.4944, lng: -66.8355 },
+                    { name: "Lidotel Centro Lido", category: "Hotel 4★", state: "Miranda", zone: "El Rosal", parish: "Chacao", lat: 10.4885, lng: -66.8588 },
+                    { name: "Posada La Parada", category: "Posada", state: "Miranda", zone: "El Hatillo", parish: "El Hatillo", lat: 10.4281, lng: -66.8242 },
+                    
+                    // --- LA GUAIRA (CARACAS - LITORAL) - 2 UBICACIONES ---
+                    { name: "Marriott Playa Grande", category: "Hotel 5★", state: "Vargas (La Guaira)", zone: "Playa Grande", parish: "Catia La Mar", lat: 10.6095, lng: -67.0125 },
+                    { name: "Eurobuilding Express Maiquetía", category: "Hotel 5★", state: "Vargas (La Guaira)", zone: "Maiquetía", parish: "Maiquetía", lat: 10.6022, lng: -66.9855 },
+
+                    // --- OTROS ESTADOS (MANTENIENDO REGISTROS NUEVOS) ---
+                    { name: "Hesperia WTC Valencia", category: "Hotel 5★", state: "Carabobo", zone: "Naguanagua", parish: "Naguanagua", lat: 10.2522, lng: -68.0067 },
+                    { name: "Hotel Guaparo Inn", category: "Hotel 4★", state: "Carabobo", zone: "Naguanagua", parish: "Naguanagua", lat: 10.2355, lng: -68.0122 },
+                    { name: "Hotel InterContinental Maracaibo", category: "Hotel 5★", state: "Zulia", zone: "El Milagro", parish: "Olegario Villalobos", lat: 10.6855, lng: -71.6022 },
+                    { name: "Hotel Kristoff", category: "Hotel 4★", state: "Zulia", zone: "Maracaibo", parish: "Olegario Villalobos", lat: 10.6685, lng: -71.6122 },
+                    { name: "Hotel Trinitarias Suites", category: "Hotel 5★", state: "Lara", zone: "Este", parish: "Santa Rosa", lat: 10.0755, lng: -69.2788 },
+                    { name: "Lidotel Barquisimeto", category: "Hotel 4★", state: "Lara", zone: "Este", parish: "Santa Rosa", lat: 10.0688, lng: -69.2745 },
+                    { name: "Wyndham Concorde Resort", category: "Hotel 5★", state: "Nueva Esparta", zone: "Porlamar", parish: "Mariño", lat: 10.9422, lng: -63.8455 },
+                    { name: "Unik Luxury Hotel", category: "Hotel 5★", state: "Nueva Esparta", zone: "Pampatar", parish: "Maneiro", lat: 10.9855, lng: -63.8022 },
+                    { name: "Hotel Maremares", category: "Hotel 5★", state: "Anzoátegui", zone: "Lechería", parish: "Diego Bautista Urbaneja", lat: 10.1988, lng: -64.6745 },
+                    { name: "Eurobuilding Express El Tigre", category: "Hotel 5★", state: "Anzoátegui", zone: "El Tigre", parish: "Simón Rodríguez", lat: 8.8855, lng: -64.2445 }
+                ];
+                
+                for (const item of initialRegistry) {
+                    await addDoc(locationsRef, {
+                        ...item,
+                        state: normalizeText(item.state),
+                        zone: normalizeText(item.zone),
+                        parish: normalizeText(item.parish)
+                    });
+                }
+            }
+        }
+
+        function startListening() {
+            const locationsRef = collection(db, 'artifacts', appId, 'public', 'data', 'locations');
+            onSnapshot(locationsRef, (snapshot) => {
+                let remoteLocations = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    remoteLocations.push({ 
+                        firebaseId: doc.id, 
+                        ...data,
+                        state: normalizeText(data.state),
+                        zone: normalizeText(data.zone),
+                        parish: normalizeText(data.parish)
+                    });
+                });
+                window.allLocations = remoteLocations;
+                window.updateMapData(remoteLocations);
+                hideLoader();
+            }, (error) => {
+                console.error("Error en Snapshot:", error);
+                hideLoader();
+            });
+        }
+
+        function hideLoader() {
+            const loader = document.getElementById('loader');
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => { if(loader) loader.style.display = 'none'; }, 500);
+            }
+        }
+
+        window.onload = loadAppData;
+
+        window.updatePointPosition = async (id, lat, lng) => {
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'locations', id);
+            await updateDoc(docRef, { lat, lng });
+            showToast("Ubicación actualizada");
+        };
+
+        window.savePointToCloud = async (data) => {
+            const locationsRef = collection(db, 'artifacts', appId, 'public', 'data', 'locations');
+            const cleanData = {
+                ...data,
+                state: normalizeText(data.state),
+                zone: normalizeText(data.zone),
+                parish: normalizeText(data.parish)
+            };
+            await addDoc(locationsRef, cleanData);
+            showToast("Sitio agregado correctamente");
+        };
+
+        window.deletePointFromCloud = async (id) => {
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'locations', id);
+            await deleteDoc(docRef);
+            showToast("Registro eliminado");
+        };
+    </script>
+
+    <style>
+        #map { height: 100%; width: 100%; min-height: 400px; background-color: #f1f5f9; }
+        .badge-5 { background: #92400e; color: white; }
+        .badge-4 { background: #1e293b; color: white; }
+        .badge-3 { background: #475569; color: white; }
+        .badge-posada { background: #059669; color: white; }
+        .filter-btn.active { background-color: #0f172a; color: white; border-color: #0f172a; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .dot-animation { transition: transform 0.3s ease; }
+        input:checked ~ .dot-animation { transform: translateX(100%); background-color: #f59e0b; }
+    </style>
+</head>
+<body class="bg-slate-50 h-screen flex flex-col md:flex-row overflow-hidden font-sans text-slate-900">
+
+    <!-- Sidebar -->
+    <div class="w-full md:w-80 lg:w-96 bg-white shadow-2xl z-10 flex flex-col border-r border-slate-200">
+        <div class="p-6 bg-slate-900 text-white">
+            <h1 class="text-xl font-black leading-tight tracking-tighter uppercase">Hospedaje Venezuela</h1>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Directorio Nacional de Hoteles</p>
+        </div>
+
+        <!-- Filtros Rápidos -->
+        <div class="p-3 bg-white border-b flex gap-1 overflow-x-auto no-scrollbar">
+            <button onclick="filterByCategory('all')" class="filter-btn active whitespace-nowrap px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all" id="btn-all">Todos</button>
+            <button onclick="filterByCategory('Hotel 5★')" class="filter-btn whitespace-nowrap px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all" id="btn-5">5★</button>
+            <button onclick="filterByCategory('Hotel 4★')" class="filter-btn whitespace-nowrap px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all" id="btn-4">4★</button>
+            <button onclick="filterByCategory('Posada')" class="filter-btn whitespace-nowrap px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all" id="btn-pos">Posadas</button>
+        </div>
+
+        <!-- Panel Editor Switch -->
+        <div class="p-4 border-b bg-slate-50 flex items-center justify-between">
+            <span class="text-[11px] font-bold text-slate-600 uppercase tracking-tighter">Panel de Editor</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="admin-mode" class="sr-only" onchange="toggleAdminMode()">
+                <div class="w-10 h-5 bg-slate-300 rounded-full"></div>
+                <div class="dot-animation absolute left-1 top-1 bg-white w-3 h-3 rounded-full shadow-sm"></div>
+            </label>
+        </div>
+
+        <!-- Formulario Editor -->
+        <div id="admin-panel" class="hidden p-4 bg-white border-b border-slate-200 space-y-2">
+            <p class="text-[9px] text-slate-400 font-bold uppercase mb-2 italic text-center underline">Instrucción: Clic derecho en mapa para ubicar</p>
+            <div class="space-y-2">
+                <input type="text" id="new-name" placeholder="Nombre del hotel" class="w-full text-xs p-2 border rounded outline-none focus:ring-1 focus:ring-slate-900">
+                <select id="new-state" class="w-full text-xs p-2 border rounded bg-white outline-none focus:ring-1 focus:ring-slate-900">
+                    <option value="" disabled selected>Selecciona Estado</option>
+                    <option value="Amazonas">Amazonas</option><option value="Anzoátegui">Anzoátegui</option>
+                    <option value="Apure">Apure</option><option value="Aragua">Aragua</option>
+                    <option value="Barinas">Barinas</option><option value="Bolívar">Bolívar</option>
+                    <option value="Carabobo">Carabobo</option><option value="Cojedes">Cojedes</option>
+                    <option value="Delta Amacuro">Delta Amacuro</option><option value="Distrito Capital">Distrito Capital</option>
+                    <option value="Falcón">Falcón</option><option value="Guárico">Guárico</option>
+                    <option value="Lara">Lara</option><option value="Mérida">Mérida</option>
+                    <option value="Miranda">Miranda</option><option value="Monagas">Monagas</option>
+                    <option value="Nueva Esparta">Nueva Esparta</option><option value="Portuguesa">Portuguesa</option>
+                    <option value="Sucre">Sucre</option><option value="Táchira">Táchira</option>
+                    <option value="Trujillo">Trujillo</option><option value="Vargas (La Guaira)">La Guaira</option>
+                    <option value="Yaracuy">Yaracuy</option><option value="Zulia">Zulia</option>
+                </select>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="new-zone" placeholder="Zona/Ciudad" class="text-xs p-2 border rounded outline-none focus:ring-1 focus:ring-slate-900">
+                    <input type="text" id="new-parish" placeholder="Parroquia" class="text-xs p-2 border rounded outline-none focus:ring-1 focus:ring-slate-900">
+                </div>
+                <select id="new-category" class="w-full text-xs p-2 border rounded bg-white outline-none focus:ring-1 focus:ring-slate-900">
+                    <option value="Hotel 5★">Hotel 5★</option><option value="Hotel 4★">Hotel 4★</option>
+                    <option value="Hotel 3★">Hotel 3★</option><option value="Posada">Posada</option>
+                </select>
+                <button onclick="handleCreate()" class="w-full bg-slate-900 text-white text-[10px] py-2.5 rounded font-black uppercase tracking-widest hover:bg-slate-800 transition-colors shadow-lg">Guardar en Directorio</button>
+            </div>
+        </div>
+
+        <!-- Lista -->
+        <div id="list-container" class="flex-1 overflow-y-auto">
+            <div class="p-10 text-center text-slate-400">
+                <div class="w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p class="text-[10px] uppercase font-bold tracking-widest">Sincronizando Directorio...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mapa -->
+    <div class="flex-1 relative">
+        <div id="map"></div>
+        <div id="loader" class="absolute inset-0 bg-white flex items-center justify-center z-50 transition-opacity duration-500">
+            <div class="text-center">
+                <div class="w-12 h-12 border-4 border-slate-900 border-t-amber-500 rounded-full animate-spin mx-auto mb-4"></div>
+                <h2 class="text-slate-900 font-black text-lg uppercase tracking-tighter">Hospedaje Venezuela</h2>
+            </div>
+        </div>
+        <div id="toast" class="absolute bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-2 rounded-full text-[10px] font-bold shadow-2xl opacity-0 transition-opacity z-50 pointer-events-none">
+            Listo
+        </div>
+    </div>
+
+    <script>
+        let map, infoWindow;
+        let markers = [];
+        let currentFilter = 'all';
+        let isAdmin = false;
+        let tempMarkerPos = null;
+
+        const uiNormalize = (text) => {
+            if (!text) return "Desconocido";
+            return text.trim().toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        };
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: 10.491, lng: -66.865 },
+                zoom: 7,
+                mapTypeControl: true,
+                mapTypeControlOptions: {
+                    style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+                    position: google.maps.ControlPosition.TOP_RIGHT
+                },
+                streetViewControl: false,
+                styles: [
+                    { featureType: "poi", stylers: [{ visibility: "off" }] },
+                    { featureType: "transit", stylers: [{ visibility: "simplified" }] }
+                ]
+            });
+            infoWindow = new google.maps.InfoWindow();
+
+            map.addListener("rightclick", (e) => {
+                if (!isAdmin) return;
+                tempMarkerPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                showToast("📍 Ubicación fijada");
+            });
+
+            if (window.allLocations) renderUI(window.allLocations);
+        }
+
+        function toggleAdminMode() {
+            isAdmin = document.getElementById('admin-mode').checked;
+            document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
+            renderUI(window.allLocations);
+        }
+
+        window.updateMapData = (data) => { if (map) renderUI(data); };
+
+        window.filterByCategory = (cat) => {
+            currentFilter = cat;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            const btnId = cat === 'all' ? 'btn-all' : cat.includes('5') ? 'btn-5' : cat.includes('4') ? 'btn-4' : 'btn-pos';
+            if (document.getElementById(btnId)) document.getElementById(btnId).classList.add('active');
+            renderUI(window.allLocations);
+        };
+
+        async function handleCreate() {
+            const name = document.getElementById('new-name').value;
+            const state = document.getElementById('new-state').value;
+            const zone = document.getElementById('new-zone').value;
+            const parish = document.getElementById('new-parish').value;
+            const category = document.getElementById('new-category').value;
+            
+            if (!name || !state || !zone) return showToast("⚠️ Faltan datos obligatorios");
+            if (!tempMarkerPos) return showToast("⚠️ Usa Clic Derecho en el mapa");
+
+            await window.savePointToCloud({
+                name: name.trim(),
+                state: state,
+                zone: zone.trim(),
+                parish: parish.trim() || zone.trim(),
+                category,
+                lat: tempMarkerPos.lat,
+                lng: tempMarkerPos.lng
+            });
+            
+            document.getElementById('new-name').value = "";
+            document.getElementById('new-zone').value = "";
+            document.getElementById('new-parish').value = "";
+            tempMarkerPos = null;
+        }
+
+        function renderUI(data) {
+            if (!data || !map) return;
+            const container = document.getElementById("list-container");
+            container.innerHTML = "";
+            
+            markers.forEach(m => m.setMap(null));
+            markers = [];
+
+            const filtered = currentFilter === 'all' ? data : data.filter(d => d.category === currentFilter);
+            
+            const grouped = filtered.reduce((acc, loc) => {
+                const s = uiNormalize(loc.state);
+                const z = uiNormalize(loc.zone);
+                if (!acc[s]) acc[s] = {};
+                if (!acc[s][z]) acc[s][z] = [];
+                acc[s][z].push(loc);
+                return acc;
+            }, {});
+
+            Object.keys(grouped).sort().forEach(stateName => {
+                const stateHeader = document.createElement("div");
+                stateHeader.className = "bg-slate-900 px-4 py-2 text-[10px] font-black text-amber-500 uppercase tracking-widest sticky top-0 z-20 border-b border-slate-800";
+                stateHeader.innerText = stateName;
+                container.appendChild(stateHeader);
+
+                Object.keys(grouped[stateName]).sort().forEach(zoneName => {
+                    const zoneHeader = document.createElement("div");
+                    zoneHeader.className = "bg-slate-100 px-4 py-1 text-[9px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200";
+                    zoneHeader.innerText = zoneName;
+                    container.appendChild(zoneHeader);
+
+                    grouped[stateName][zoneName].forEach(loc => {
+                        let color = '#475569';
+                        if (loc.category.includes('5★')) color = '#92400e';
+                        else if (loc.category.includes('4★')) color = '#1e293b';
+                        else if (loc.category === 'Posada') color = '#059669';
+
+                        const marker = new google.maps.Marker({
+                            position: { lat: loc.lat, lng: loc.lng },
+                            map: map,
+                            draggable: isAdmin,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                fillColor: color,
+                                fillOpacity: 1,
+                                strokeWeight: 2,
+                                strokeColor: '#fff',
+                                scale: 7
+                            }
+                        });
+
+                        marker.addListener("dragend", (e) => {
+                            window.updatePointPosition(loc.firebaseId, e.latLng.lat(), e.latLng.lng());
+                        });
+
+                        marker.addListener("click", () => {
+                            let badgeClass = 'badge-3';
+                            if (loc.category.includes('5★')) badgeClass = 'badge-5';
+                            else if (loc.category.includes('4★')) badgeClass = 'badge-4';
+                            else if (loc.category === 'Posada') badgeClass = 'badge-posada';
+
+                            infoWindow.setContent(`
+                                <div class="p-2 font-sans min-w-[150px]">
+                                    <span class="text-[9px] font-black px-2 py-0.5 rounded ${badgeClass}">${loc.category}</span>
+                                    <h3 class="font-bold text-sm mt-1 uppercase">${loc.name}</h3>
+                                    <p class="text-[9px] text-slate-500 mt-1 uppercase font-bold">${loc.state} • ${loc.zone}</p>
+                                    ${isAdmin ? `<button onclick="window.deletePointFromCloud('${loc.firebaseId}')" class="mt-3 text-red-600 text-[9px] font-black uppercase border-t pt-2 w-full text-center">Borrar Registro</button>` : ''}
+                                </div>
+                            `);
+                            infoWindow.open(map, marker);
+                        });
+                        markers.push(marker);
+
+                        const item = document.createElement("div");
+                        item.className = "p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-all";
+                        item.innerHTML = `
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[8px] font-bold uppercase text-slate-400 tracking-tighter">${loc.category} • ${uiNormalize(loc.parish)}</span>
+                            </div>
+                            <h4 class="text-xs font-black text-slate-800 uppercase leading-tight">${loc.name}</h4>
+                        `;
+                        item.onclick = () => {
+                            map.panTo(marker.getPosition());
+                            map.setZoom(15);
+                            google.maps.event.trigger(marker, 'click');
+                        };
+                        container.appendChild(item);
+                    });
+                });
+            });
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById("toast");
+            t.innerText = msg; t.style.opacity = "1";
+            setTimeout(() => t.style.opacity = "0", 3000);
+        }
+    </script>
+</body>
+</html>
