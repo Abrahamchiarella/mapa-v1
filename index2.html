@@ -207,94 +207,97 @@
     <!-- Sidebar -->
     <div
         class="w-full h-3/5 md:h-auto md:w-80 lg:w-96 bg-white shadow-2xl z-10 flex flex-col border-r border-slate-200">
-        <div class="p-6 bg-slate-900 text-white">
-            <h1 class="text-xl font-black leading-tight tracking-tighter uppercase">Hospedaje Venezuela</h1>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Directorio Nacional de
-                Hoteles</p>
-        </div>
-
-        <!-- Filtros Rápidos -->
-        <div class="p-3 bg-white border-b flex gap-1 overflow-x-auto no-scrollbar">
-            <button onclick="filterByCategory('all')"
-                class="filter-btn active whitespace-nowrap px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all"
-                id="btn-all">Todos</button>
-            <button onclick="filterByCategory('Hotel 5★')"
-                class="filter-btn whitespace-nowrap px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all"
-                id="btn-5">5★</button>
-            <button onclick="filterByCategory('Hotel 4★')"
-                class="filter-btn whitespace-nowrap px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all"
-                id="btn-4">4★</button>
-            <button onclick="filterByCategory('Posada')"
-                class="filter-btn whitespace-nowrap px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all"
-                id="btn-pos">Posadas</button>
-        </div>
-
-        <!-- Panel Editor Switch -->
-        <div class="p-4 border-b bg-slate-50 flex flex-col gap-3">
-            <div class="flex items-center justify-between">
-                <span class="text-[11px] font-bold text-slate-600 uppercase tracking-tighter">Panel de Editor</span>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="admin-mode" class="sr-only" onchange="toggleAdminMode()">
-                    <div class="w-10 h-5 bg-slate-300 rounded-full"></div>
-                    <div class="dot-animation absolute left-1 top-1 bg-white w-3 h-3 rounded-full shadow-sm"></div>
-                </label>
+        <div class="flex-1 overflow-y-auto relative">
+            <div class="p-6 bg-slate-900 text-white">
+                <h1 class="text-xl font-black leading-tight tracking-tighter uppercase">Hospedaje Venezuela</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Directorio Nacional de
+                    Hoteles</p>
             </div>
-            <a href="index.html"
-                class="w-full text-center bg-amber-500 text-slate-900 text-[10px] font-black uppercase py-2 rounded hover:bg-amber-400 transition-colors shadow-sm">
-                ← Regresar a Versión 1
-            </a>
-        </div>
 
-        <!-- Formulario Editor -->
-        <div id="admin-panel" class="hidden p-4 bg-white border-b border-slate-200 space-y-2">
-            <p class="text-[9px] text-slate-400 font-bold uppercase mb-2 italic text-center underline">Instrucción: Clic
-                derecho en mapa para ubicar</p>
-            <div class="space-y-2">
-                <input type="text" id="new-name" placeholder="Nombre del hotel"
-                    class="w-full text-xs p-2 border rounded outline-none focus:ring-1 focus:ring-slate-900">
+            <!-- Filtros Rápidos -->
+            <div class="p-3 bg-white border-b flex gap-1 overflow-x-auto no-scrollbar">
+                <button onclick="filterByCategory('all')"
+                    class="filter-btn active whitespace-nowrap px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all"
+                    id="btn-all">Todos</button>
+                <button onclick="filterByCategory('Hotel 5★')"
+                    class="filter-btn whitespace-nowrap px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all"
+                    id="btn-5">5★</button>
+                <button onclick="filterByCategory('Hotel 4★')"
+                    class="filter-btn whitespace-nowrap px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all"
+                    id="btn-4">4★</button>
+                <button onclick="filterByCategory('Posada')"
+                    class="filter-btn whitespace-nowrap px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all"
+                    id="btn-pos">Posadas</button>
+            </div>
 
-                <select id="new-state" onchange="updateCitiesDropdown()"
-                    class="w-full text-xs p-2 border rounded bg-white outline-none focus:ring-1 focus:ring-slate-900">
-                    <option value="" disabled selected>Selecciona Estado</option>
-                </select>
-
-                <select id="new-city"
-                    class="w-full text-xs p-2 border rounded bg-white outline-none focus:ring-1 focus:ring-slate-900">
-                    <option value="" disabled selected>Selecciona Ciudad</option>
-                </select>
-
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="text" id="new-parish" placeholder="Parroquia (Editable)"
-                        class="text-xs p-2 border rounded outline-none focus:ring-1 focus:ring-slate-900">
-                    <input type="text" id="new-zone" placeholder="Zona/Sector (Editable)"
-                        class="text-xs p-2 border rounded outline-none focus:ring-1 focus:ring-slate-900">
+            <!-- Panel Editor Switch -->
+            <div class="p-4 border-b bg-slate-50 flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-tighter">Panel de Editor</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="admin-mode" class="sr-only" onchange="toggleAdminMode()">
+                        <div class="w-10 h-5 bg-slate-300 rounded-full"></div>
+                        <div class="dot-animation absolute left-1 top-1 bg-white w-3 h-3 rounded-full shadow-sm"></div>
+                    </label>
                 </div>
+                <a href="index.html"
+                    class="w-full text-center bg-amber-500 text-slate-900 text-[10px] font-black uppercase py-2 rounded hover:bg-amber-400 transition-colors shadow-sm">
+                    ← Regresar a Versión 1
+                </a>
+            </div>
 
-                <div class="grid grid-cols-2 gap-2 mt-2">
-                    <select id="new-category"
-                        class="text-xs p-2 border rounded bg-white outline-none focus:ring-1 focus:ring-slate-900">
-                        <option value="Hotel 5★">Hotel 5★</option>
-                        <option value="Hotel 4★">Hotel 4★</option>
-                        <option value="Hotel 3★">Hotel 3★</option>
-                        <option value="Posada">Posada</option>
+            <!-- Formulario Editor -->
+            <div id="admin-panel" class="hidden p-4 bg-white border-b border-slate-200 space-y-2">
+                <p class="text-[9px] text-slate-400 font-bold uppercase mb-2 italic text-center underline">Instrucción:
+                    Clic
+                    derecho en mapa para ubicar</p>
+                <div class="space-y-2">
+                    <input type="text" id="new-name" placeholder="Nombre del hotel"
+                        class="w-full text-xs p-2 border rounded outline-none focus:ring-1 focus:ring-slate-900">
+
+                    <select id="new-state" onchange="updateCitiesDropdown()"
+                        class="w-full text-xs p-2 border rounded bg-white outline-none focus:ring-1 focus:ring-slate-900">
+                        <option value="" disabled selected>Selecciona Estado</option>
                     </select>
-                    <button onclick="handleCreate()"
-                        class="bg-slate-900 text-white text-[9px] py-2 rounded font-black uppercase tracking-widest hover:bg-slate-800 shadow-sm transition-colors">Agregar</button>
-                </div>
 
-                <button onclick="handleDeleteByCity()"
-                    class="w-full mt-2 bg-red-50 text-red-600 border border-red-200 text-[9px] py-2 rounded font-black uppercase tracking-widest hover:bg-red-100 shadow-sm">Eliminar
-                    toda la Ciudad</button>
+                    <select id="new-city"
+                        class="w-full text-xs p-2 border rounded bg-white outline-none focus:ring-1 focus:ring-slate-900">
+                        <option value="" disabled selected>Selecciona Ciudad</option>
+                    </select>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="new-parish" placeholder="Parroquia (Editable)"
+                            class="text-xs p-2 border rounded outline-none focus:ring-1 focus:ring-slate-900">
+                        <input type="text" id="new-zone" placeholder="Zona/Sector (Editable)"
+                            class="text-xs p-2 border rounded outline-none focus:ring-1 focus:ring-slate-900">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <select id="new-category"
+                            class="text-xs p-2 border rounded bg-white outline-none focus:ring-1 focus:ring-slate-900">
+                            <option value="Hotel 5★">Hotel 5★</option>
+                            <option value="Hotel 4★">Hotel 4★</option>
+                            <option value="Hotel 3★">Hotel 3★</option>
+                            <option value="Posada">Posada</option>
+                        </select>
+                        <button onclick="handleCreate()"
+                            class="bg-slate-900 text-white text-[9px] py-2 rounded font-black uppercase tracking-widest hover:bg-slate-800 shadow-sm transition-colors">Agregar</button>
+                    </div>
+
+                    <button onclick="handleDeleteByCity()"
+                        class="w-full mt-2 bg-red-50 text-red-600 border border-red-200 text-[9px] py-2 rounded font-black uppercase tracking-widest hover:bg-red-100 shadow-sm">Eliminar
+                        toda la Ciudad</button>
+                </div>
             </div>
-        </div>
 
-        <!-- Lista -->
-        <div id="list-container" class="flex-1 overflow-y-auto">
-            <div class="p-10 text-center text-slate-400">
-                <div
-                    class="w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-2">
+            <!-- Lista -->
+            <div id="list-container">
+                <div class="p-10 text-center text-slate-400">
+                    <div
+                        class="w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-2">
+                    </div>
+                    <p class="text-[10px] uppercase font-bold tracking-widest">Sincronizando Directorio...</p>
                 </div>
-                <p class="text-[10px] uppercase font-bold tracking-widest">Sincronizando Directorio...</p>
             </div>
         </div>
     </div>
