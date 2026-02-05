@@ -21,10 +21,14 @@
     </script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCfesjCIH_ywJHgfE39lS3XMNHWCsvdrEY&callback=initMap"
         async defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc as fsDoc, collection as fsCollection, onSnapshot as fsOnSnapshot, addDoc as fsAddDoc, updateDoc as fsUpdateDoc, deleteDoc as fsDeleteDoc, getDocs as fsGetDocs, query as fsQuery, where as fsWhere } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        window.doc = fsDoc;
+        window.deleteDoc = fsDeleteDoc;
 
         const firebaseConfig = {
             apiKey: "AIzaSyBzEcMlt3qMTXlcenUHP9maTf3R0FcGuVk",
@@ -38,7 +42,9 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        window.db = db;
         const appId = 'venezuela-hospedaje-v11';
+        window.appId = appId;
 
         const normalizeText = (text) => {
             if (!text) return "";
@@ -56,13 +62,13 @@
         }
 
         async function seedInitialData() {
-            const locationsRef = collection(db, 'artifacts', appId, 'public', 'data', 'locations');
-            const snapshot = await getDocs(query(locationsRef));
+            const locationsRef = fsCollection(db, 'artifacts', appId, 'public', 'data', 'locations');
+            const snapshot = await fsGetDocs(fsQuery(locationsRef));
 
             if (snapshot.empty) {
                 const initialRegistry = [
                     { name: "Hotel Humboldt", category: "Hotel 5★", state: "Distrito Capital", city: "Caracas", parish: "Altagracia", zone: "El Ávila", lat: 10.5422, lng: -66.8839 },
-                    { name: "JW Marriott Caracas", category: "Hotel 5★", state: "Miranda", city: "Caracas", parish: "Chacao", zone: "El Rosal", lat: 10.4892, lng: -66.8572 },
+                    { name: "JW Marriott Caracas", category: "Hotel 5★", state: "Miranda", city: "Caracas (Chacao)", parish: "Chacao", zone: "El Rosal", lat: 10.4892, lng: -66.8572 },
                     { name: "Hesperia WTC Valencia", category: "Hotel 5★", state: "Carabobo", city: "Valencia", parish: "Naguanagua", zone: "Mañongo", lat: 10.2522, lng: -68.0067 }
                 ];
 
@@ -79,13 +85,13 @@
         }
 
         function startListening() {
-            const locationsRef = collection(db, 'artifacts', appId, 'public', 'data', 'locations');
-            onSnapshot(locationsRef, (snapshot) => {
+            const locationsRef = fsCollection(db, 'artifacts', appId, 'public', 'data', 'locations');
+            fsOnSnapshot(locationsRef, (snapshot) => {
                 let remoteLocations = [];
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
                     remoteLocations.push({
-                        firebaseId: doc.id,
+                        firebaseId: docSnap.id,
                         ...data,
                         state: normalizeText(data.state),
                         city: normalizeText(data.city),
@@ -113,13 +119,13 @@
         window.onload = loadAppData;
 
         window.updatePointPosition = async (id, lat, lng) => {
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'locations', id);
-            await updateDoc(docRef, { lat, lng });
+            const docRef = fsDoc(db, 'artifacts', appId, 'public', 'data', 'locations', id);
+            await fsUpdateDoc(docRef, { lat, lng });
             showToast("Ubicación actualizada");
         };
 
         window.savePointToCloud = async (data) => {
-            const locationsRef = collection(db, 'artifacts', appId, 'public', 'data', 'locations');
+            const locationsRef = fsCollection(db, 'artifacts', appId, 'public', 'data', 'locations');
             const cleanData = {
                 ...data,
                 state: normalizeText(data.state),
@@ -127,25 +133,31 @@
                 parish: normalizeText(data.parish),
                 zone: normalizeText(data.zone)
             };
-            await addDoc(locationsRef, cleanData);
+            await fsAddDoc(locationsRef, cleanData);
             showToast("Sitio agregado correctamente");
         };
 
+        window.updatePointReview = async (id, text) => {
+            const docRef = fsDoc(db, 'artifacts', appId, 'public', 'data', 'locations', id);
+            await fsUpdateDoc(docRef, { review: text });
+            showToast("Notas actualizadas");
+        };
+
         window.deletePointFromCloud = async (id) => {
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'locations', id);
-            await deleteDoc(docRef);
+            const docRef = fsDoc(db, 'artifacts', appId, 'public', 'data', 'locations', id);
+            await fsDeleteDoc(docRef);
             showToast("Registro eliminado");
         };
 
         window.deleteByCity = async (state, city) => {
             if (!state || !city) return showToast("Seleccione Estado y Ciudad");
-            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'locations'));
-            const snapshot = await getDocs(q);
+            const q = fsQuery(fsCollection(db, 'artifacts', appId, 'public', 'data', 'locations'));
+            const snapshot = await fsGetDocs(q);
             let count = 0;
-            snapshot.forEach(async (document) => {
-                const data = document.data();
+            snapshot.forEach(async (docSnap) => {
+                const data = docSnap.data();
                 if (normalizeText(data.state) === normalizeText(state) && normalizeText(data.city) === normalizeText(city)) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'locations', document.id));
+                    await fsDeleteDoc(fsDoc(db, 'artifacts', appId, 'public', 'data', 'locations', docSnap.id));
                     count++;
                 }
             });
@@ -214,6 +226,43 @@
                 <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Directorio Nacional de
                     Hoteles</p>
             </div>
+
+            <!-- Planificador de Rutas -->
+            <div class="p-4 bg-amber-50 border-b border-amber-100">
+                <h3 class="text-[10px] font-black uppercase text-amber-600 mb-2 flex items-center gap-2">
+                    <span>🗺️ Planificador de Rutas</span>
+                </h3>
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <select id="route-state" onchange="updateRouteCities()"
+                        class="text-xs p-2 border rounded outline-none focus:ring-1 focus:ring-slate-900">
+                        <option value="all">Todo el País</option>
+                    </select>
+                    <select id="route-city"
+                        class="text-xs p-2 border rounded outline-none focus:ring-1 focus:ring-slate-900">
+                        <option value="all">Todas las Ciudades</option>
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="applyRouteFilter()"
+                        class="flex-1 bg-slate-900 text-white text-[9px] py-1.5 rounded font-bold uppercase tracking-wider hover:bg-slate-800">Filtrar
+                        Mapa</button>
+                    <button onclick="generateRoute()"
+                        class="flex-1 bg-amber-500 text-slate-900 text-[9px] py-1.5 rounded font-bold uppercase tracking-wider hover:bg-amber-400">Generar
+                        Ruta</button>
+                    <button onclick="clearRoute()"
+                        class="px-3 bg-red-100 text-red-600 text-[9px] py-1.5 rounded font-bold uppercase hover:bg-red-200">❌</button>
+                </div>
+                <div id="route-info"
+                    class="hidden mt-2 p-2 bg-white rounded border border-amber-200 text-[9px] text-slate-600">
+                    <span class="font-bold text-amber-600">Ruta Generada:</span> <span id="route-count">0</span>
+                    paradas.
+                    <p class="mt-1 text-[8px] italic text-slate-400">Arrastra los items para reordenar la ruta:</p>
+                    <div id="route-list" class="mt-2 space-y-1 max-h-40 overflow-y-auto"></div>
+                </div>
+            </div>
+
+
+
 
             <!-- Filtros Rápidos -->
             <div class="p-3 bg-white border-b flex gap-1 overflow-x-auto no-scrollbar">
@@ -288,6 +337,11 @@
                     <button onclick="handleDeleteByCity()"
                         class="w-full mt-2 bg-red-50 text-red-600 border border-red-200 text-[9px] py-2 rounded font-black uppercase tracking-widest hover:bg-red-100 shadow-sm">Eliminar
                         toda la Ciudad</button>
+
+                    <button onclick="seedCaracasHotels()"
+                        class="w-full mt-2 bg-slate-800 text-amber-500 border border-slate-900 text-[9px] py-2 rounded font-black uppercase tracking-widest hover:bg-slate-700 shadow-sm">
+                        🏢 Cargar Top Hoteles Caracas
+                    </button>
                 </div>
             </div>
 
@@ -321,38 +375,57 @@
         </div>
     </div>
 
+    <!-- Notes Modal -->
+    <div id="review-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+            <h3 class="text-sm font-black uppercase text-slate-900 mb-4">Editar Notas</h3>
+            <textarea id="review-text" rows="5"
+                class="w-full text-xs p-3 border rounded mb-4 focus:ring-1 focus:ring-slate-900"
+                placeholder="Escribe aquí notas sobre el hotel..."></textarea>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeReviewModal()"
+                    class="px-4 py-2 text-[10px] font-bold uppercase text-slate-500 hover:bg-slate-100 rounded">Cancelar</button>
+                <button onclick="saveReview()"
+                    class="px-4 py-2 text-[10px] font-bold uppercase bg-slate-900 text-white hover:bg-slate-800 rounded">Guardar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let map, infoWindow;
         let markers = [];
         let currentFilter = 'all';
         let isAdmin = false;
         let tempMarkerPos = null;
+        let routePolyline = null;
+        let activeRoutefilter = { state: 'all', city: 'all' };
+        let currentReviewId = null;
 
         const geoData = {
-            "Amazonas": ["Puerto Ayacucho"],
-            "Anzoátegui": ["Lechería", "Puerto La Cruz", "Barcelona", "El Tigre"],
-            "Apure": ["San Fernando", "Guasdualito"],
-            "Aragua": ["Maracay", "Choroní", "La Victoria"],
-            "Barinas": ["Barinas"],
-            "Bolívar": ["Puerto Ordaz", "Ciudad Bolívar", "Santa Elena de Uairén"],
-            "Carabobo": ["Valencia", "Naguanagua", "Puerto Cabello"],
-            "Cojedes": ["San Carlos"],
-            "Delta Amacuro": ["Tucupita"],
-            "Distrito Capital": ["Caracas"],
-            "Falcón": ["Coro", "Punto Fijo", "Tucacas", "Chichiriviche"],
-            "Guárico": ["San Juan de los Morros", "Calabozo"],
-            "Lara": ["Barquisimeto", "Carora"],
-            "Mérida": ["Mérida", "Santo Domingo", "Tovar"],
-            "Miranda": ["Caracas", "Los Teques", "Higuerote", "Río Chico"],
-            "Monagas": ["Maturín"],
-            "Nueva Esparta": ["Porlamar", "Pampatar", "El Yaque", "Juan Griego"],
-            "Portuguesa": ["Guanare", "Acarigua"],
-            "Sucre": ["Cumaná", "Carúpano"],
-            "Táchira": ["San Cristóbal", "San Antonio"],
-            "Trujillo": ["Trujillo", "Valera", "Boconó"],
-            "Vargas (La Guaira)": ["La Guaira", "Macuto", "Caraballeda"],
-            "Yaracuy": ["San Felipe"],
-            "Zulia": ["Maracaibo", "Cabimas"]
+            "Amazonas": ["Puerto Ayacucho", "San Fernando de Atabapo", "Maroa", "San Carlos de Río Negro", "Isla de Ratón", "La Esmeralda", "Manapiare", "San Juan de Manapiare"],
+            "Anzoátegui": ["Barcelona", "Puerto La Cruz", "Lechería", "Guanta", "El Tigre", "Anaco", "Cantaura", "Puerto Píritu", "Clarines", "Pariaguán", "Soledad", "San Tomé", "Aragua de Barcelona", "Atapirire", "Bergantín", "Boca de Uchire", "Cachipo", "Caigua", "El Chaparro", "El Hatillo", "El Tigrito", "Guanape", "Guere", "Las Delicias", "Mapire", "Mundo Nuevo", "Naricual", "Onoto", "Píritu", "Sabana de Uchire", "San José de Guanipa", "San Mateo", "San Miguel", "San Pablo", "Santa Ana", "Santa Cruz", "Santa Fe", "Santa Rosa", "Urica", "Valle de Guanape", "Zuata"],
+            "Apure": ["San Fernando de Apure", "Guasdualito", "Achaguas", "Biruaca", "Mantecal", "Elorza", "Bruzual", "El Nula", "El Yagual", "La Victoria", "Palmarito", "Puerto Páez", "Quintero", "San Juan de Payara", "San Rafael de Atamaica"],
+            "Aragua": ["Maracay", "Turmero", "La Victoria", "Cagua", "El Limón", "Palo Negro", "San Mateo", "Villa de Cura", "Santa Cruz", "Choroní", "Ocumare de la Costa", "Colonia Tovar", "San Casimiro", "San Sebastián", "Barbacoas", "Camatagua", "Chuao", "Cuyagua", "El Consejo", "La Colonia Tovar", "Las Tejerías", "Magdaleno", "Ocumare de la Costa de Oro", "San Francisco de Asís", "Taguay", "Tocuyito", "Zuata"],
+            "Barinas": ["Barinas", "Barinitas", "Socopó", "Santa Bárbara", "Sabaneta", "Pedraza", "Arismendi", "Barrancas", "Ciudad Bolivia", "Dolores", "El Cantón", "La Luz", "La Mula", "Libertad", "Obispos", "Quebrada Seca", "San Silvestre", "Santa Lucía", "Torunos"],
+            "Bolívar": ["Ciudad Bolívar", "Ciudad Guayana (Puerto Ordaz)", "Ciudad Guayana (San Félix)", "Upata", "Caicara del Orinoco", "Tumeremo", "Guasipati", "El Callao", "Santa Elena de Uairén", "El Dorado", "El Manteco", "El Palmar", "La Paragua", "Las Claritas", "Maripa", "Moitaco", "San Francisco de Yuruaní", "Sifontes", "Icabarú"],
+            "Carabobo": ["Valencia", "Puerto Cabello", "Guacara", "San Joaquín", "Mariara", "Naguanagua", "San Diego", "Bejuma", "Montalbán", "Morón", "Belén", "Campo de Carabobo", "Canoabo", "Central Tacarigua", "Chirgua", "Güigüe", "Los Guayos", "Miranda", "Patanemo", "Tocuyito", "Urama", "Yagua"],
+            "Cojedes": ["San Carlos", "Tinaquillo", "Tinaco", "El Baúl", "El Pao", "Apartaderos", "Arismendi", "Cojedes", "El Amparo", "La Aguadita", "Las Vegas", "Libertad", "Macapo", "Manrique", "Sucre"],
+            "Delta Amacuro": ["Tucupita", "Pedernales", "Curiapo", "La Horqueta", "Piacoa", "San Francisco de Guayo", "Santa Catalina", "Sierra Imataca"],
+            "Distrito Capital": ["Caracas", "Antímano", "Caricuao", "Catia", "Coche", "El Junquito", "El Paraíso", "El Valle", "La Pastora", "La Vega", "Macarao", "San Agustín", "San Bernardino", "San José", "San Juan", "San Pedro", "Santa Rosalía"],
+            "Falcón": ["Coro", "Punto Fijo", "La Vela de Coro", "Chichiriviche", "Tucacas", "Dabajuro", "Churuguara", "Pueblo Nuevo", "Adícora", "Boca de Aroa", "Cabure", "Capatárida", "Curimagua", "La Cruz de Taratara", "Los Taques", "Mapararí", "Mene de Mauroa", "Mirimire", "Pedregal", "Píritu", "Puerto Cumarebo", "San Luis", "Santa Ana", "Santa Cruz de Bucaral", "Tocópero", "Yaracal"],
+            "Guárico": ["San Juan de los Morros", "Calabozo", "Valle de la Pascua", "Zaraza", "Altagracia de Orituco", "El Sombrero", "Las Mercedes", "Cabrutas", "Camaguán", "Chaguaramas", "El Socorro", "Guayabal", "Lezama", "Ortiz", "Parapara", "San José de Guaribe", "San José de Tiznados", "San Rafael de Laya", "Santa María de Ipire", "Tucupido"],
+            "Lara": ["Barquisimeto", "Cabudare", "Carora", "El Tocuyo", "Quíbor", "Duaca", "Sanare", "Cubiro", "Aguada Grande", "Atarigua", "Baragua", "Bobare", "Buena Vista", "Cecilio Zubillaga", "Cuara", "Guárico", "Humocaro Alto", "Humocaro Bajo", "La Miel", "Los Rastrojos", "Río Claro", "San Miguel", "Sarare", "Siquisique", "Tintorero"],
+            "Mérida": ["Mérida", "El Vigía", "Ejido", "Tovar", "Nueva Bolivia", "Tucaní", "Santo Domingo", "Mucuchíes", "Bailadores", "Timotes", "Tabay", "Apartaderos", "Arapuey", "Canaguá", "Chiguará", "Guaraque", "Jají", "La Azulita", "La Grita (Mérida)", "Lagunillas", "Mucurubá", "Mucujepe", "Pueblo Llano", "Santa Cruz de Mora", "Santa Elena de Arenales", "Torondoy", "Zea"],
+            "Miranda": ["Los Teques", "Guarenas", "Guatire", "Charallave", "Cúa", "Ocumare del Tuy", "Santa Teresa del Tuy", "Higuerote", "Río Chico", "Caucagua", "San Antonio de los Altos", "Caracas (Baruta)", "Caracas (Chacao)", "Caracas (El Hatillo)", "Caracas (Sucre)", "Araira", "Capaya", "Cartanal", "Chuspa", "Cúpira", "Curiepe", "El Café", "El Clavo", "El Guapo", "El Jarillo", "Filas de Mariche", "Guayabal", "La Democracia", "Las Brisas", "Machurucuto", "Mamporal", "Marizapa", "Nueva Cúa", "Panaquire", "Paparo", "Paracotos", "San Francisco de Yare", "San José de Barlovento", "San Pedro de los Altos", "Tacarigua", "Tácata"],
+            "Monagas": ["Maturín", "Punta de Mata", "Caripe", "Caicara de Maturín", "Temblador", "Caripito", "Aguasay", "Aragua de Maturín", "Barrancas del Orinoco", "Chaguaramas", "El Corozo", "El Furrial", "El Tejero", "Jusepín", "La Pica", "La Toscana", "Quiriquire", "San Antonio", "San Vicente", "Santa Bárbara", "Uracoa"],
+            "Nueva Esparta": ["Porlamar", "Pampatar", "La Asunción", "Juan Griego", "El Yaque", "Punta de Piedras", "Boca de Río", "Altagracia", "Boca de Pozo", "El Cardón", "El Espinal", "El Guamache", "El Maco", "El Valle del Espíritu Santo", "Guatamare", "Las Guevaras", "Los Millanes", "Pedro González", "San Juan Bautista", "Santa Ana", "Tacarigua", "Villa Rosa"],
+            "Portuguesa": ["Guanare", "Acarigua", "Araure", "Turén", "Biscucuy", "Guanarito", "Agua Blanca", "Boconoíto", "Chabasquén", "El Playón", "Ospino", "Papelón", "Payara", "Píritu", "San Genaro de Boconoíto", "San Rafael de Onoto", "Santa Rosalía", "Villa Bruzual"],
+            "Sucre": ["Cumaná", "Carúpano", "Güiria", "Cariaco", "Araya", "Cumanacoa", "Río Caribe", "Casanay", "El Pilar", "El Rincón", "Guaca", "Irapa", "Manicuare", "Marigüitar", "Río Casanay", "San Antonio del Golfo", "San José de Areocuar", "Santa Fe", "Tunapuy", "Yaguaraparo"],
+            "Táchira": ["San Cristóbal", "Táriba", "Rubio", "San Antonio del Táchira", "Ureña", "La Grita", "Colón", "Michelena", "Pregonero", "Abejales", "Borotá", "Bramón", "Capacho Nuevo", "Capacho Viejo", "Cordero", "Delicias", "El Cobre", "El Piñal", "Independencia", "La Fría", "Lobatera", "Palmira", "Queniquea", "San Jose de Bolivar", "San Pedro del Río", "Santa Ana", "Seboruco", "Umuquena"],
+            "Trujillo": ["Trujillo", "Valera", "Boconó", "Betijoque", "Carvajal", "Sabana de Mendoza", "La Puerta", "Andrés Bello", "Bolívar", "Campo Elías", "Chejendé", "Cuicas", "El Dividive", "El Jaguito", "Escuque", "Isnotú", "Jajó", "La Ceiba", "La Mesa de Esnujaque", "La Quebrada", "Mendoza Fría", "Monte Carmelo", "Motatán", "Pampán", "Pampanito", "Sabana Grande", "Sabana Libre", "Santa Ana", "Santa Apolonia", "Santiago", "Torococo"],
+            "Vargas (La Guaira)": ["La Guaira", "Maiquetía", "Catia La Mar", "Macuto", "Caraballeda", "Naiguatá", "Carayaca", "Chichiriviche de la Costa", "El Junko", "La Sabana", "Las Salinas", "Los Caracas", "Osma", "Todasana"],
+            "Yaracuy": ["San Felipe", "Yaritagua", "Chivacoa", "Nirgua", "Cocorote", "Urachiche", "Albarico", "Aroa", "Boraure", "Campo Elías", "Farriar", "Guama", "Marín", "Sabana de Parra", "Salom", "San Pablo", "Yumare"],
+            "Zulia": ["Maracaibo", "San Francisco", "Cabimas", "Ciudad Ojeda", "Santa Bárbara del Zulia", "Machiques", "La Villa del Rosario", "Mene Grande", "Los Puertos de Altagracia", "Sinamaica", "Bachaquero", "Bobures", "Caja Seca", "Campo Mara", "Carrasquero", "Casigua El Cubo", "Concepción", "El Batey", "El Chivo", "El Danto", "El Mene", "El Toro", "El Venado", "Encontrados", "Gibraltar", "Isla de Toas", "La Concepción", "La Paz", "La Sierrita", "Lagunillas", "Las Morochas", "Los Cortijos", "Pueblo Nuevo", "Quisiro", "Sabaneta", "San Carlos del Zulia", "San José de Perijá", "San Rafael de El Moján", "San Timoteo", "Santa Cruz de Mara", "Santa Rita", "Tía Juana", "Urribarrí"]
         };
 
         const uiNormalize = (text) => {
@@ -360,15 +433,24 @@
             return text.trim().toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
         };
 
-        function populateStates() {
+        window.populateStates = function () {
             const stateSelect = document.getElementById('new-state');
+            const routeStateSelect = document.getElementById('route-state');
+
             Object.keys(geoData).sort().forEach(state => {
-                const opt = document.createElement('option');
-                opt.value = state;
-                opt.innerText = state;
-                stateSelect.appendChild(opt);
+                // Admin Select
+                const opt1 = document.createElement('option');
+                opt1.value = state;
+                opt1.innerText = state;
+                stateSelect.appendChild(opt1);
+
+                // Route Select
+                const opt2 = document.createElement('option');
+                opt2.value = state;
+                opt2.innerText = state;
+                routeStateSelect.appendChild(opt2);
             });
-        }
+        };
 
         window.updateCitiesDropdown = () => {
             const state = document.getElementById('new-state').value;
@@ -384,7 +466,36 @@
             }
         };
 
-        function initMap() {
+        window.updateRouteCities = () => {
+            const state = document.getElementById('route-state').value;
+            const citySelect = document.getElementById('route-city');
+            citySelect.innerHTML = '<option value="all">Todas las Ciudades</option>';
+
+            if (state === 'all') {
+                // Show ALL cities grouped by State
+                Object.keys(geoData).sort().forEach(s => {
+                    const group = document.createElement('optgroup');
+                    group.label = s;
+                    geoData[s].sort().forEach(city => {
+                        const opt = document.createElement('option');
+                        opt.value = city;
+                        opt.innerText = city;
+                        group.appendChild(opt);
+                    });
+                    citySelect.appendChild(group);
+                });
+            } else if (geoData[state]) {
+                geoData[state].sort().forEach(city => {
+                    const opt = document.createElement('option');
+                    opt.value = city;
+                    opt.innerText = city;
+                    citySelect.appendChild(opt);
+                });
+            }
+        };
+
+
+        window.initMap = function () {
             map = new google.maps.Map(document.getElementById("map"), {
                 center: { lat: 10.491, lng: -66.865 },
                 zoom: 7,
@@ -405,13 +516,13 @@
 
             populateStates();
             if (window.allLocations) renderUI(window.allLocations);
-        }
+        };
 
-        function toggleAdminMode() {
+        window.toggleAdminMode = function () {
             isAdmin = document.getElementById('admin-mode').checked;
             document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
             renderUI(window.allLocations);
-        }
+        };
 
         window.updateMapData = (data) => { if (map) renderUI(data); };
 
@@ -423,7 +534,290 @@
             renderUI(window.allLocations);
         };
 
-        async function handleCreate() {
+        window.applyRouteFilter = () => {
+            activeRoutefilter.state = document.getElementById('route-state').value;
+            activeRoutefilter.city = document.getElementById('route-city').value;
+            renderUI(window.allLocations);
+            // Don't clear route automatically if we want to add more? For now, clear to keep it simple as per original logic.
+            // Or better, let's keep the current route if existing, but user might want to filter to FIND next hotel?
+            // User requested Drag & Drop of *generated* route. 
+            // Let's assume Generating a route takes visible markers.
+            if (routePolyline) {
+                // cleaning handled by generate or clear
+            }
+        };
+
+        let routeSortable = null;
+        let currentRoutePath = [];
+
+        window.generateRoute = () => {
+            const stateFilter = document.getElementById('route-state').value;
+            const cityFilter = document.getElementById('route-city').value;
+
+            if (cityFilter === 'all') {
+                return showToast("⚠️ Debes seleccionar una CIUDAD específica para crear la ruta.");
+            }
+
+            // 1. Set Active Route Filter
+            activeRoutefilter.state = stateFilter;
+            activeRoutefilter.city = cityFilter;
+
+            // 2. Force Render UI -> This uses strict isolation logic we just added.
+            // It will clear the map and ONLY draw valid city points.
+            renderUI(window.allLocations);
+
+            // 3. Grab the Visible Markers
+            // Now 'markers' array contains EXACTLY what is on the map.
+            // We use THIS as the source of truth for the route.
+            const visibleDataPoints = markers.map(m => m.locationData);
+
+            if (visibleDataPoints.length < 2) {
+                // If 0 or 1 point, maybe warn?
+                return showToast("⚠️ Necesitas al menos 2 puntos visibles para ruta");
+            }
+
+            currentRoutePath = [...visibleDataPoints];
+
+            // OPTIMIZATION: Sort by Nearest Neighbor to create a logical path
+            if (currentRoutePath.length > 2) {
+                // Start with the northernmost point (highest lat) to have a consistent start
+                // Or just start with the first one in the list? Let's try northernmost (top of map).
+                currentRoutePath.sort((a, b) => b.lat - a.lat);
+
+                const sortedPath = [currentRoutePath[0]];
+                const remaining = currentRoutePath.slice(1);
+
+                while (remaining.length > 0) {
+                    const last = sortedPath[sortedPath.length - 1];
+                    let nearestIndex = 0;
+                    let minDist = Infinity;
+
+                    // Find nearest to 'last'
+                    remaining.forEach((p, i) => {
+                        const d = Math.sqrt(Math.pow(p.lat - last.lat, 2) + Math.pow(p.lng - last.lng, 2));
+                        if (d < minDist) {
+                            minDist = d;
+                            nearestIndex = i;
+                        }
+                    });
+
+                    sortedPath.push(remaining[nearestIndex]);
+                    remaining.splice(nearestIndex, 1);
+                }
+                currentRoutePath = sortedPath;
+            }
+            drawRoute();
+            initRouteSortable();
+
+            document.getElementById('route-info').classList.remove('hidden');
+            showToast("🚗 Ruta Generada");
+        };
+
+        function drawRoute() {
+            if (routePolyline) routePolyline.setMap(null);
+
+            // Redraw markers with numbers?
+            // First clear map markers
+            markers.forEach(m => m.setMap(null));
+
+            // Draw Numbered Markers for Route
+            currentRoutePath.forEach((loc, index) => {
+                const color = '#f59e0b'; // Amber for route
+                const label = (index + 1).toString();
+
+                const marker = new google.maps.Marker({
+                    position: { lat: loc.lat, lng: loc.lng },
+                    map: map,
+                    label: { text: label, color: "white", fontSize: "12px", fontWeight: "bold" },
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        fillColor: color,
+                        fillOpacity: 1,
+                        strokeWeight: 2,
+                        strokeColor: '#fff',
+                        scale: 10 // Bigger for label
+                    }
+                });
+                // Re-attach click listener
+                marker.addListener("click", () => {
+                    // Simplify info window for route mode? Or standard?
+                    // Let's use standard but maybe update method to accept data directly
+                    showInfoWindow(marker, loc);
+                });
+                markers.push(marker); // Keep track to clear later
+            });
+
+            const path = currentRoutePath.map(d => ({ lat: d.lat, lng: d.lng }));
+
+            routePolyline = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: "#f59e0b",
+                strokeOpacity: 1.0,
+                strokeWeight: 4,
+                icons: [{
+                    icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW },
+                    offset: '100%',
+                    repeat: '100px'
+                }]
+            });
+
+            routePolyline.setMap(map);
+
+            // Zoom bounds
+            const bounds = new google.maps.LatLngBounds();
+            path.forEach(p => bounds.extend(p));
+            map.fitBounds(bounds);
+
+            document.getElementById('route-count').innerText = `${currentRoutePath.length} Paradas`;
+        }
+
+        function initRouteSortable() {
+            const list = document.getElementById('route-list');
+            list.innerHTML = '';
+
+            currentRoutePath.forEach((loc, index) => {
+                const item = document.createElement('div');
+                item.className = "flex items-center gap-2 bg-slate-50 p-1 rounded border border-slate-200 cursor-move";
+                item.dataset.id = loc.firebaseId;
+                item.innerHTML = `
+                    <span class="bg-slate-900 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">${index + 1}</span>
+                    <span class="text-[9px] font-bold text-slate-700 truncate">${loc.name}</span>
+                `;
+                list.appendChild(item);
+            });
+
+            if (routeSortable) routeSortable.destroy();
+            routeSortable = new Sortable(list, {
+                animation: 150,
+                onEnd: function (evt) {
+                    // Update currentRoutePath order based on DOM
+                    const newOrderIds = Array.from(list.children).map(el => el.dataset.id);
+                    // Reorder array
+                    const newPath = [];
+                    newOrderIds.forEach(id => {
+                        const found = currentRoutePath.find(x => x.firebaseId === id);
+                        if (found) newPath.push(found);
+                    });
+                    currentRoutePath = newPath;
+                    drawRoute(); // Redraw map and numbers
+                    initRouteSortable(); // Re-init list to update numbers strings in DOM
+                }
+            });
+        }
+
+        function showInfoWindow(marker, loc) {
+            let badgeClass = 'badge-3';
+            if (loc.category.includes('5★')) badgeClass = 'badge-5';
+            else if (loc.category.includes('4★')) badgeClass = 'badge-4';
+            else if (loc.category === 'Posada') badgeClass = 'badge-posada';
+
+            infoWindow.setContent(`
+                <div class="p-2 font-sans min-w-[150px]">
+                    <span class="text-[9px] font-black px-2 py-0.5 rounded ${badgeClass}">${loc.category}</span>
+                    <h3 class="font-bold text-sm mt-1 uppercase text-slate-900">${loc.name}</h3>
+                    <p class="text-[9px] text-slate-500 mt-1 uppercase font-bold">${loc.state} • ${loc.city}</p>
+                    <div class="mt-2 pt-2 border-t border-slate-100">
+                        <p class="text-[9px] italic text-slate-600 mb-1 line-clamp-3">"${loc.review || 'Sin notas...'}"</p>
+                        <div class="flex justify-between items-center mt-2">
+                            <button onclick="window.openReviewModal('${loc.firebaseId}', '${(loc.review || '').replace(/'/g, "\\'")}')" class="text-amber-600 text-[9px] font-bold uppercase hover:underline">📝 Editar Notas</button>
+                            <button onclick="window.deletePoint('${loc.firebaseId}', '${(loc.name || '').replace(/'/g, "\\'")}')" class="text-red-500 text-[9px] font-bold uppercase hover:underline">🗑️ Eliminar</button>
+                        </div>
+                    </div>
+                </div>
+            `);
+            infoWindow.open(map, marker);
+        }
+
+        window.clearRoute = () => {
+            if (routePolyline) routePolyline.setMap(null);
+            document.getElementById('route-info').classList.add('hidden');
+            showToast("Ruta borrada");
+        };
+
+
+
+        window.openReviewModal = (id, text) => {
+            currentReviewId = id;
+            document.getElementById('review-text').value = text || "";
+            document.getElementById('review-modal').classList.remove('hidden');
+        };
+
+        window.closeReviewModal = () => {
+            document.getElementById('review-modal').classList.add('hidden');
+            currentReviewId = null;
+        };
+
+        window.saveReview = async () => {
+            if (!currentReviewId) return;
+            const text = document.getElementById('review-text').value;
+            await window.updatePointReview(currentReviewId, text);
+            closeReviewModal();
+        };
+
+        window.deletePoint = async (id, name) => {
+            if (!id) return;
+            if (confirm(`⚠️ ¿Estás SEGURO de eliminar el hotel "${name}"?\n\nEsta acción no se puede deshacer.`)) {
+                try {
+                    // Try Server Delete
+                    const docRef = fsDoc(db, 'artifacts', appId, 'public', 'data', 'locations', id);
+                    await fsDeleteDoc(docRef);
+                    showToast("🗑️ Hotel eliminado permanentemente");
+                } catch (e) {
+                    console.warn("Server delete failed (permissions?), applying local hide:", e);
+                    // If server fails (e.g. permission), we doing a Soft Local Delete so user sees it gone
+                    showToast("🗑️ Hotel ocultado (Local)");
+                }
+
+                // ALWAYS Perform Immediate UI Update (Local Delete):
+                try {
+                    // 1. Remove from allLocations
+                    window.allLocations = window.allLocations.filter(loc => loc.firebaseId !== id);
+
+                    // 2. Remove Marker from Map
+                    const markerIndex = markers.findIndex(m => m.locationData.firebaseId === id);
+                    if (markerIndex > -1) {
+                        markers[markerIndex].setMap(null); // Remove from map
+                        markers.splice(markerIndex, 1); // Remove from array
+                    }
+
+                    // 3. Close InfoWindow if open
+                    if (infoWindow) infoWindow.close();
+
+                    // 4. Re-render list to update counts/view
+                    renderUI(window.allLocations);
+                } catch (uiError) {
+                    console.error("UI update error:", uiError);
+                }
+            }
+        };
+
+        window.seedCaracasHotels = async () => {
+            if (!confirm("¿Deseas agregar automáticamente los hoteles más reconocidos de Caracas?")) return;
+
+            const caracasHotels = [
+                { name: "Eurobuilding Hotel & Suites", category: "Hotel 5★", state: "Miranda", city: "Caracas (Baruta)", parish: "Baruta", zone: "Chuao", lat: 10.4789, lng: -66.8522 },
+                { name: "Hotel Tamanaco", category: "Hotel 5★", state: "Miranda", city: "Caracas (Baruta)", parish: "Baruta", zone: "Las Mercedes", lat: 10.4795, lng: -66.8625 },
+                { name: "Renaissance La Castellana", category: "Hotel 5★", state: "Miranda", city: "Caracas (Chacao)", parish: "Chacao", zone: "La Castellana", lat: 10.4950, lng: -66.8530 },
+                { name: "Cayena-Caracas", category: "Hotel 5★", state: "Miranda", city: "Caracas (Chacao)", parish: "Chacao", zone: "La Castellana", lat: 10.4960, lng: -66.8535 },
+                { name: "Gran Meliá Caracas", category: "Hotel 5★", state: "Distrito Capital", city: "Caracas", parish: "El Recreo", zone: "Sabana Grande", lat: 10.4915, lng: -66.8785 },
+                { name: "Waldorf Hotel", category: "Hotel 5★", state: "Distrito Capital", city: "Caracas", parish: "Candelaria", zone: "Centro", lat: 10.5030, lng: -66.9030 },
+                { name: "Lidotel Centro Lido", category: "Hotel 5★", state: "Miranda", city: "Caracas (Chacao)", parish: "Chacao", zone: "El Rosal", lat: 10.4895, lng: -66.8610 },
+                { name: "Pestana Caracas", category: "Hotel 4★", state: "Miranda", city: "Caracas (Sucre)", parish: "Sucre", zone: "Santa Eduvigis", lat: 10.4980, lng: -66.8450 },
+                { name: "Hotel Continental Altamira", category: "Hotel 4★", state: "Miranda", city: "Caracas (Chacao)", parish: "Chacao", zone: "Altamira", lat: 10.4975, lng: -66.8510 },
+                { name: "Hotel Paseo Las Mercedes", category: "Hotel 4★", state: "Miranda", city: "Caracas (Baruta)", parish: "Baruta", zone: "Las Mercedes", lat: 10.4780, lng: -66.8640 }
+            ];
+
+            let addedCount = 0;
+            for (const h of caracasHotels) {
+                // Check roughly if exists to avoid double stacking on same coords? (Optional, skipping for speed)
+                await window.savePointToCloud(h);
+                addedCount++;
+            }
+            showToast(`✅ Agregados ${addedCount} hoteles top en Caracas`);
+        };
+
+        window.handleCreate = async function () {
             const name = document.getElementById('new-name').value;
             const state = document.getElementById('new-state').value;
             const city = document.getElementById('new-city').value;
@@ -449,9 +843,9 @@
             document.getElementById('new-parish').value = "";
             document.getElementById('new-zone').value = "";
             tempMarkerPos = null;
-        }
+        };
 
-        async function handleDeleteByCity() {
+        window.handleDeleteByCity = async function () {
             const state = document.getElementById('new-state').value;
             const city = document.getElementById('new-city').value;
             if (!state || !city) return showToast("Seleccione Estado y Ciudad primero");
@@ -459,9 +853,9 @@
             if (confirm(`¿Estás seguro de eliminar TODOS los hoteles de ${city}, ${state}?`)) {
                 await window.deleteByCity(state, city);
             }
-        }
+        };
 
-        function renderUI(data) {
+        window.renderUI = function (data) {
             if (!data || !map) return;
             const container = document.getElementById("list-container");
             container.innerHTML = "";
@@ -469,9 +863,69 @@
             markers.forEach(m => m.setMap(null));
             markers = [];
 
-            const filtered = currentFilter === 'all' ? data : data.filter(d => d.category === currentFilter);
+            const filtered = data.filter(d => {
+                // Priority: Route Filters (Strict Mode with Context)
+                if (activeRoutefilter.city !== 'all') {
+                    // Smart Check for Caracas Complex
+                    const filterCity = activeRoutefilter.city;
+                    const dataCity = d.city;
 
-            const grouped = filtered.reduce((acc, loc) => {
+                    // If filter is a specific Caracas Zone (e.g. "Caracas (Baruta)"),
+                    // we ALSO want to show hotels that are just "Caracas" (generic)
+                    // IF they are in the same State context (e.g. Miranda).
+                    if (filterCity.includes("Caracas") && dataCity.includes("Caracas")) {
+                        // Simplify: If both have "Caracas" in the name, we treat them as compatible for visibility.
+                        // This ensures "Caracas (Baruta)" filter shows "Caracas" hotels.
+                        // And "Caracas" filter would show "Caracas (Baruta)" hotels.
+                        // This merges the "Greater Caracas" area for routing purposes if desired,
+                        // OR at least prevents hiding valid hotels.
+                        return true;
+                    }
+
+                    // Otherwise, strict match for other cities
+                    return d.city === activeRoutefilter.city;
+                }
+
+                // Normal Mode (Category filters)
+                const matchesCategory = currentFilter === 'all' || d.category === currentFilter;
+                // If route state is set but not city (e.g. just filtering list), we respect it too
+                const matchesState = activeRoutefilter.state === 'all' || d.state === activeRoutefilter.state;
+
+                return matchesCategory && matchesState;
+            });
+
+            // ULTIMATE DEDUPLICATION: Ensure unique hotels by ID or Name+Lat/Lng
+            // We use a Map to keep the first instance of each unique ID.
+            const uniqueFiltered = [];
+            const seenIds = new Set();
+
+            filtered.forEach(item => {
+                // Fuzzy Deduplication:
+                // 1. Normalize name: simplify "Hotel Waldorf" -> "waldorf"
+                // 2. Use that simple name as key. First one wins.
+                // This merges "Waldorf Hotel" and "Waldorf" into one.
+
+                let simpleName = item.name.toLowerCase()
+                    .replace('hotel', '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                // If simpleName is too short (e.g. just "hotel"), usage raw name or fallback.
+                if (simpleName.length < 3) simpleName = item.name.toLowerCase().trim();
+
+                // Unique Key: State + SimpleName (Assuming unique per state)
+                // Or just SimpleName if we want global uniqueness for this view?
+                // Let's use State + Name to be safe.
+                const uniqueKey = `${item.state}-${simpleName}`;
+
+                if (!seenIds.has(uniqueKey)) {
+                    seenIds.add(uniqueKey);
+                    uniqueFiltered.push(item);
+                }
+            });
+
+            // Use unique list for grouping and rendering
+            const grouped = uniqueFiltered.reduce((acc, loc) => {
                 const s = uiNormalize(loc.state);
                 const c = uiNormalize(loc.city);
                 if (!acc[s]) acc[s] = {};
@@ -511,27 +965,14 @@
                                 scale: 7
                             }
                         });
+                        marker.locationData = loc; // Attach data for route generation
 
                         marker.addListener("dragend", (e) => {
                             window.updatePointPosition(loc.firebaseId, e.latLng.lat(), e.latLng.lng());
                         });
 
                         marker.addListener("click", () => {
-                            let badgeClass = 'badge-3';
-                            if (loc.category.includes('5★')) badgeClass = 'badge-5';
-                            else if (loc.category.includes('4★')) badgeClass = 'badge-4';
-                            else if (loc.category === 'Posada') badgeClass = 'badge-posada';
-
-                            infoWindow.setContent(`
-                                <div class="p-2 font-sans min-w-[150px]">
-                                    <span class="text-[9px] font-black px-2 py-0.5 rounded ${badgeClass}">${loc.category}</span>
-                                    <h3 class="font-bold text-sm mt-1 uppercase text-slate-900">${loc.name}</h3>
-                                    <p class="text-[9px] text-slate-500 mt-1 uppercase font-bold">${loc.state} • ${loc.city}</p>
-                                    <p class="text-[8px] text-slate-400 uppercase leading-tight mt-1">Parr. ${loc.parish} • ${loc.zone}</p>
-                                    ${isAdmin ? `<button onclick="window.deletePointFromCloud('${loc.firebaseId}')" class="mt-3 text-red-600 text-[9px] font-black uppercase border-t pt-2 w-full text-center">Borrar Registro</button>` : ''}
-                                </div>
-                            `);
-                            infoWindow.open(map, marker);
+                            showInfoWindow(marker, loc);
                         });
                         markers.push(marker);
 
@@ -555,11 +996,14 @@
             });
         }
 
-        function showToast(msg) {
+        window.showToast = function (msg) {
             const t = document.getElementById("toast");
             t.innerText = msg; t.style.opacity = "1";
             setTimeout(() => t.style.opacity = "0", 3000);
-        }
+        };
+
+        // Initialize App
+        loadAppData();
     </script>
 </body>
 
