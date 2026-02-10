@@ -203,13 +203,31 @@
             display: none;
         }
 
-        .dot-animation {
-            transition: transform 0.3s ease;
-        }
-
         input:checked~.dot-animation {
             transform: translateX(100%);
             background-color: #f59e0b;
+        }
+
+        /* Mobile View Optimization */
+        @media (max-width: 768px) {
+            .mobile-hidden {
+                display: none !important;
+            }
+
+            .mobile-full {
+                width: 100% !important;
+                height: 100vh !important;
+            }
+
+            #sidebar {
+                transition: transform 0.3s ease-in-out;
+            }
+
+            #map-container {
+                position: fixed;
+                inset: 0;
+                z-index: 40;
+            }
         }
     </style>
 </head>
@@ -218,8 +236,8 @@
     class="bg-slate-50 min-h-screen flex flex-col md:flex-row md:h-screen md:overflow-hidden font-sans text-slate-900">
 
     <!-- Sidebar -->
-    <div
-        class="w-full h-[60vh] md:h-auto md:w-80 lg:w-96 bg-white shadow-2xl z-10 flex flex-col border-r border-slate-200">
+    <div id="sidebar"
+        class="w-full h-screen md:h-auto md:w-80 lg:w-96 bg-white shadow-2xl z-10 flex flex-col border-r border-slate-200">
         <div class="flex-1 overflow-y-auto relative">
             <div class="p-6 bg-slate-900 text-white">
                 <h1 class="text-xl font-black leading-tight tracking-tighter uppercase">Hospedaje Venezuela</h1>
@@ -370,11 +388,23 @@
                     <p class="text-[10px] uppercase font-bold tracking-widest">Sincronizando Directorio...</p>
                 </div>
             </div>
+
+            <!-- Botón flotante para ver mapa (Móvil) -->
+            <button id="btn-show-map" onclick="toggleMobileView('map')"
+                class="md:hidden fixed bottom-6 right-6 z-30 bg-slate-900 text-white p-4 rounded-full shadow-2xl flex items-center gap-2 hover:scale-110 active:scale-95 transition-all">
+                <span class="text-sm font-black uppercase tracking-widest">Ver Mapa</span>
+                <span class="text-xl">🗺️</span>
+            </button>
         </div>
     </div>
 
     <!-- Mapa -->
-    <div class="h-[70vh] w-full md:h-full md:flex-1 relative">
+    <div id="map-container" class="h-[70vh] w-full md:h-full md:flex-1 relative mobile-hidden md:block">
+        <!-- Botón para volver al listado (Móvil) -->
+        <button id="btn-show-list" onclick="toggleMobileView('list')"
+            class="md:hidden absolute bottom-6 left-6 z-[1000] bg-white text-slate-900 px-4 py-2 rounded-lg shadow-xl font-black uppercase text-[10px] border border-slate-200 flex items-center gap-2">
+            <span>← Volver al Listado</span>
+        </button>
         <div id="map"></div>
         <div id="loader"
             class="absolute inset-0 bg-white flex items-center justify-center z-50 transition-opacity duration-500">
@@ -436,6 +466,22 @@
         let routePolyline = null;
         let activeRoutefilter = { state: 'all', city: 'all' };
         let currentReviewId = null;
+
+        window.toggleMobileView = function (view) {
+            const sidebar = document.getElementById('sidebar');
+            const mapContainer = document.getElementById('map-container');
+
+            if (view === 'map') {
+                sidebar.classList.add('mobile-hidden');
+                mapContainer.classList.remove('mobile-hidden');
+                mapContainer.classList.add('mobile-full');
+                if (map) google.maps.event.trigger(map, "resize");
+            } else {
+                sidebar.classList.remove('mobile-hidden');
+                mapContainer.classList.add('mobile-hidden');
+                sidebar.classList.add('mobile-full');
+            }
+        };
 
         const geoData = {
             "Amazonas": ["Puerto Ayacucho", "San Fernando de Atabapo", "Maroa", "San Carlos de Río Negro", "Isla de Ratón", "La Esmeralda", "Manapiare", "San Juan de Manapiare"],
