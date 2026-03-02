@@ -440,8 +440,51 @@
 
             <div class="space-y-3">
                 <div>
+                    <label class="text-[9px] font-bold text-slate-500 uppercase">Categoría</label>
+                    <select id="edit-category"
+                        class="w-full text-xs p-2 border rounded focus:ring-1 focus:ring-slate-900 bg-white mb-2">
+                        <option value="Hotel 5★">Hotel 5★</option>
+                        <option value="Hotel 4★">Hotel 4★</option>
+                        <option value="Hotel 3★">Hotel 3★</option>
+                        <option value="Posada">Posada</option>
+                    </select>
+
+                    <label class="text-[9px] font-bold text-slate-500 uppercase">Estatus & Ubicación</label>
+                    <div class="grid grid-cols-3 gap-2 mt-1 mb-2">
+                        <select id="edit-status"
+                            class="col-span-1 text-xs p-2 border rounded focus:ring-1 focus:ring-slate-900 bg-white">
+                            <option value="Operativo">Operativo</option>
+                            <option value="Cerrado">Cerrado</option>
+                            <option value="Remodelación">Remodelación</option>
+                        </select>
+                        <input type="number" step="any" id="edit-lat" placeholder="Latitud"
+                            class="text-xs p-2 border rounded focus:ring-1 focus:ring-slate-900">
+                        <input type="number" step="any" id="edit-lng" placeholder="Longitud"
+                            class="text-xs p-2 border rounded focus:ring-1 focus:ring-slate-900">
+                    </div>
+
+                    <label class="text-[9px] font-bold text-slate-500 uppercase">Dirección</label>
+                    <div class="space-y-2 mt-1 mb-2">
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="edit-state" onchange="updateEditCitiesDropdown()"
+                                class="text-xs p-2 border rounded focus:ring-1 focus:ring-slate-900 bg-white">
+                                <option value="" disabled>Estado</option>
+                            </select>
+                            <select id="edit-city"
+                                class="text-xs p-2 border rounded focus:ring-1 focus:ring-slate-900 bg-white">
+                                <option value="" disabled>Ciudad</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="edit-parish" placeholder="Parroquia"
+                                class="text-xs p-2 border rounded focus:ring-1 focus:ring-slate-900">
+                            <input type="text" id="edit-zone" placeholder="Zona"
+                                class="text-xs p-2 border rounded focus:ring-1 focus:ring-slate-900">
+                        </div>
+                    </div>
+
                     <label class="text-[9px] font-bold text-slate-500 uppercase">Notas del Hotel</label>
-                    <textarea id="review-text" rows="3"
+                    <textarea id="review-text" rows="2"
                         class="w-full text-xs p-3 border rounded focus:ring-1 focus:ring-slate-900 mt-1"
                         placeholder="Escribe aquí notas sobre el hotel..."></textarea>
                 </div>
@@ -551,6 +594,12 @@
                 opt2.value = state;
                 opt2.innerText = state;
                 routeStateSelect.appendChild(opt2);
+
+                // Edit Select
+                const opt3 = document.createElement('option');
+                opt3.value = state;
+                opt3.innerText = state;
+                document.getElementById('edit-state').appendChild(opt3);
             });
         };
 
@@ -563,6 +612,23 @@
                     const opt = document.createElement('option');
                     opt.value = city;
                     opt.innerText = city;
+                    citySelect.appendChild(opt);
+                });
+            }
+        };
+
+        window.updateEditCitiesDropdown = () => {
+            const state = document.getElementById('edit-state').value;
+            const citySelect = document.getElementById('edit-city');
+            const currentCity = citySelect.getAttribute('data-current'); // Hack to keep selection if possible
+
+            citySelect.innerHTML = '<option value="" disabled selected>Selecciona Ciudad</option>';
+            if (geoData[state]) {
+                geoData[state].sort().forEach(city => {
+                    const opt = document.createElement('option');
+                    opt.value = city;
+                    opt.innerText = city;
+                    if (city === currentCity) opt.selected = true;
                     citySelect.appendChild(opt);
                 });
             }
@@ -861,6 +927,30 @@
             document.getElementById('edit-manager-contact').value = loc.manager_contact || "";
             document.getElementById('edit-manager-position').value = loc.manager_position || "";
 
+            // New Fields
+            document.getElementById('edit-category').value = loc.category || "Posada";
+            document.getElementById('edit-status').value = loc.status || "Operativo";
+            document.getElementById('edit-lat').value = loc.lat;
+            document.getElementById('edit-lng').value = loc.lng;
+            document.getElementById('edit-parish').value = loc.parish || "";
+            document.getElementById('edit-zone').value = loc.zone || "";
+
+            // Handle State/City Cascading
+            const stateSelect = document.getElementById('edit-state');
+            stateSelect.value = loc.state;
+
+            // Set current city attribute for the updater to see (or just update manually)
+            const citySelect = document.getElementById('edit-city');
+            citySelect.setAttribute('data-current', loc.city);
+
+            // Trigger update to populate cities
+            updateEditCitiesDropdown();
+
+            // Now set the city value explicitly after population
+            setTimeout(() => {
+                document.getElementById('edit-city').value = loc.city;
+            }, 50);
+
             document.getElementById('review-modal').classList.remove('hidden');
         };
 
@@ -875,7 +965,16 @@
                 review: document.getElementById('review-text').value.trim(),
                 manager_name: document.getElementById('edit-manager-name').value.trim(),
                 manager_contact: document.getElementById('edit-manager-contact').value.trim(),
-                manager_position: document.getElementById('edit-manager-position').value.trim()
+                manager_position: document.getElementById('edit-manager-position').value.trim(),
+                // New Fields
+                category: document.getElementById('edit-category').value,
+                status: document.getElementById('edit-status').value,
+                lat: parseFloat(document.getElementById('edit-lat').value),
+                lng: parseFloat(document.getElementById('edit-lng').value),
+                state: document.getElementById('edit-state').value,
+                city: document.getElementById('edit-city').value,
+                parish: document.getElementById('edit-parish').value.trim(),
+                zone: document.getElementById('edit-zone').value.trim()
             };
             await window.updatePointDetails(currentReviewId, details);
             closeReviewModal();
@@ -1027,11 +1126,6 @@
                     // we ALSO want to show hotels that are just "Caracas" (generic)
                     // IF they are in the same State context (e.g. Miranda).
                     if (filterCity.includes("Caracas") && dataCity.includes("Caracas")) {
-                        // Simplify: If both have "Caracas" in the name, we treat them as compatible for visibility.
-                        // This ensures "Caracas (Baruta)" filter shows "Caracas" hotels.
-                        // And "Caracas" filter would show "Caracas (Baruta)" hotels.
-                        // This merges the "Greater Caracas" area for routing purposes if desired,
-                        // OR at least prevents hiding valid hotels.
                         return true;
                     }
 
@@ -1048,16 +1142,10 @@
             });
 
             // ULTIMATE DEDUPLICATION: Ensure unique hotels by ID or Name+Lat/Lng
-            // We use a Map to keep the first instance of each unique ID.
             const uniqueFiltered = [];
             const seenIds = new Set();
 
             filtered.forEach(item => {
-                // Fuzzy Deduplication:
-                // 1. Normalize name: simplify "Hotel Waldorf" -> "waldorf"
-                // 2. Use that simple name as key. First one wins.
-                // This merges "Waldorf Hotel" and "Waldorf" into one.
-
                 let simpleName = item.name.toLowerCase()
                     .replace('hotel', '')
                     .replace(/\s+/g, ' ')
@@ -1066,9 +1154,6 @@
                 // If simpleName is too short (e.g. just "hotel"), usage raw name or fallback.
                 if (simpleName.length < 3) simpleName = item.name.toLowerCase().trim();
 
-                // Unique Key: State + SimpleName (Assuming unique per state)
-                // Or just SimpleName if we want global uniqueness for this view?
-                // Let's use State + Name to be safe.
                 const uniqueKey = `${item.state}-${simpleName}`;
 
                 if (!seenIds.has(uniqueKey)) {
@@ -1139,12 +1224,22 @@
                             </div>
                         ` : '';
 
+                        // FIX: Ensure status badge is rendered correctly
+                        const statusBadge = (loc.status && loc.status !== 'Operativo') ?
+                            `<span class="px-1.5 py-0.5 rounded bg-red-100 text-red-600 text-[6px] font-black uppercase tracking-wider">${loc.status}</span>` : '';
+
                         item.innerHTML = `
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="text-[8px] font-bold uppercase text-slate-400 tracking-tighter">${loc.category} • ${uiNormalize(loc.parish)}</span>
+                                ${statusBadge}
                             </div>
-                            <h4 class="text-xs font-black text-slate-800 uppercase leading-tight">${loc.name}</h4>
-                            <p class="text-[8px] text-slate-400 uppercase mt-1 italic">${uiNormalize(loc.zone)}</p>
+                            <div class="flex justify-start items-center gap-2">
+                                <h4 class="text-xs font-black text-slate-800 uppercase leading-tight grow">${loc.name}</h4>
+                                <button onclick="event.stopPropagation(); window.openReviewModal('${loc.firebaseId}')" class="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] px-1.5 py-0.5 rounded border border-slate-300 font-bold uppercase tracking-wider">
+                                    EDITAR
+                                </button>
+                            </div>
+                            <p class="text-[8px] text-slate-400 uppercase mt-0.5 italic">${uiNormalize(loc.zone)}</p>
                             ${managerListInfo}
                         `;
                         item.onclick = () => {
@@ -1156,7 +1251,7 @@
                     });
                 });
             });
-        }
+        };
 
         window.showToast = function (msg) {
             const t = document.getElementById("toast");
